@@ -1,0 +1,79 @@
+{
+  "name": "Raffle",
+  "desc": "",
+  "methods": [
+    {
+      "name": "createApplication",
+      "args": [
+        {
+          "name": "beaconApp",
+          "type": "application",
+          "desc": ""
+        },
+        {
+          "name": "price",
+          "type": "uint64",
+          "desc": ""
+        },
+        {
+          "name": "length",
+          "type": "uint64",
+          "desc": ""
+        }
+      ],
+      "desc": "",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
+    },
+    {
+      "name": "optInToApplication",
+      "args": [],
+      "desc": "",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
+    },
+    {
+      "name": "chooseWinner",
+      "args": [
+        {
+          "name": "_beaconApp",
+          "type": "application",
+          "desc": ""
+        }
+      ],
+      "desc": "",
+      "returns": {
+        "type": "(address,uint64,uint64)",
+        "desc": ""
+      }
+    },
+    {
+      "name": "claim",
+      "args": [],
+      "desc": "",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
+    },
+    {
+      "name": "buyTicket",
+      "args": [
+        {
+          "name": "payTxn",
+          "type": "pay",
+          "desc": ""
+        }
+      ],
+      "desc": "",
+      "returns": {
+        "type": "uint64",
+        "desc": ""
+      }
+    }
+  ]
+}
