@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeAll, beforeEach } from '@jest/globals';
 import { algorandFixture } from '@algorandfoundation/algokit-utils/testing';
-import { algos } from '@algorandfoundation/algokit-utils';
-import { encodeUint64, makePaymentTxnWithSuggestedParamsFromObject } from 'algosdk';
+import { algos, sendTransaction } from '@algorandfoundation/algokit-utils';
+import { encodeAddress, encodeUint64, makePaymentTxnWithSuggestedParamsFromObject } from 'algosdk';
 import { RaffleClient } from '../contracts/clients/RaffleClient';
 
 // I can't get a copy of the randomness beacon running locally, this is just placeholder
@@ -29,7 +29,7 @@ describe('Raffle', () => {
       algod
     );
 
-    await appClient.create.createApplication({ beaconApp: BEACON_APP_ID, price: algos(1).algos, length: 20 });
+    await appClient.create.createApplication({ beaconApp: BEACON_APP_ID, price: algos(1).microAlgos, length: 15 });
     const { appId, appAddress } = await appClient.appClient.getAppReference();
 
     testAppId = appId;
@@ -90,49 +90,52 @@ describe('Raffle', () => {
     expect(Number(numTicketsBought.return)).toEqual(0);
   });
 
-  test('manyEntries', async () => {
-    const { algod, generateAccount } = fixture.context;
+  // test('manyEntries', async () => {
+  //   const { algod, generateAccount } = fixture.context;
 
-    for (let i = 1; i < 5; i += 1) {
-      // eslint-disable-next-line no-await-in-loop
-      const acc = await generateAccount({ initialFunds: algos(10) });
+  //   for (let i = 1; i < 5; i += 1) {
+  //     // eslint-disable-next-line no-await-in-loop
+  //     const acc = await generateAccount({ initialFunds: algos(10) });
 
-      const rc = new RaffleClient(
-        {
-          sender: acc,
-          resolveBy: 'id',
-          id: testAppId,
-        },
-        algod
-      );
+  //     const rc = new RaffleClient(
+  //       {
+  //         sender: acc,
+  //         resolveBy: 'id',
+  //         id: testAppId,
+  //       },
+  //       algod
+  //     );
 
-      // eslint-disable-next-line no-await-in-loop
-      await rc.optIn.optInToApplication({});
+  //     // eslint-disable-next-line no-await-in-loop
+  //     await rc.optIn.optInToApplication({});
 
-      const txn = makePaymentTxnWithSuggestedParamsFromObject({
-        from: acc.addr,
-        to: testAppAddress,
-        amount: algos(1).microAlgos,
-        // eslint-disable-next-line no-await-in-loop
-        suggestedParams: await algod.getTransactionParams().do(),
-      });
+  //     // it's not quite 0.2 algos, but this covers most cases
+  //     const boxFee = algos(0.2).microAlgos;
 
-      // eslint-disable-next-line no-await-in-loop
-      const ntb = await rc.buyTicket(
-        { payTxn: txn },
-        {
-          boxes: [{ appIndex: 0, name: encodeUint64(i) }],
-        }
-      );
+  //     // TODO: needs to pay box fee storage
+  //     const txn = makePaymentTxnWithSuggestedParamsFromObject({
+  //       from: acc.addr,
+  //       to: testAppAddress,
+  //       amount: algos(1).microAlgos + boxFee,
+  //       // eslint-disable-next-line no-await-in-loop
+  //       suggestedParams: await algod.getTransactionParams().do(),
+  //     });
 
-      console.log(ntb);
-    }
-  });
+  //     // eslint-disable-next-line no-await-in-loop
+  //     const ntb = await rc.buyTicket(
+  //       { payTxn: txn },
+  //       {
+  //         boxes: [{ appIndex: 0, name: encodeUint64(i) }],
+  //       }
+  //     );
 
-  test('chooseWinner', async () => {
+  //     console.log(ntb);
+  //   }
+  // });
+
+  test('chooseWinningTicket', async () => {
     const { algod, testAccount } = fixture.context;
 
-    console.log(testAppId);
     const userAppClient = new RaffleClient(
       {
         sender: testAccount,
@@ -142,16 +145,83 @@ describe('Raffle', () => {
       algod
     );
 
-    await algod.setBlockOffsetTimestamp(5000).do();
+    for (let i = 0; i < 30; i += 1) {
+      const payTxn = makePaymentTxnWithSuggestedParamsFromObject({
+        from: testAccount.addr,
+        to: testAppAddress,
+        amount: algos(0).microAlgos,
+        // eslint-disable-next-line no-await-in-loop
+        suggestedParams: await algod.getTransactionParams().do(),
+      });
+
+      // eslint-disable-next-line no-await-in-loop
+      await sendTransaction({ transaction: payTxn, from: testAccount }, algod);
+    }
 
     await userAppClient.optIn.optInToApplication({});
 
-    await userAppClient.chooseWinner(
-      { _beaconApp: BEACON_APP_ID },
+    // ret will be the winning ticket number
+    await userAppClient.chooseWinningTicket({ _beaconApp: BEACON_APP_ID });
+  });
+
+  test('setWinner', async () => {
+    const { algod, testAccount } = fixture.context;
+
+    const userAppClient = new RaffleClient(
       {
-        boxes: [{ appIndex: 0, name: encodeUint64(3) }],
+        sender: testAccount,
+        resolveBy: 'id',
+        id: testAppId,
+      },
+      algod
+    );
+
+    const { winningTicket } = await userAppClient.getGlobalState();
+
+    if (!winningTicket) {
+      throw Error('winningTicketNumber global set not set!');
+    }
+
+    await userAppClient.setWinner(
+      {},
+      {
+        boxes: [{ appIndex: 0, name: encodeUint64(winningTicket?.asNumber()) }],
+
         sendParams: {
-          fee: algos(0.003),
+          fee: algos(0.002), // needs to pay fee for randomness beacon call
+        },
+      }
+    );
+  });
+
+  test('claim', async () => {
+    const { algod, testAccount } = fixture.context;
+
+    const userAppClient = new RaffleClient(
+      {
+        sender: testAccount,
+        resolveBy: 'id',
+        id: testAppId,
+      },
+      algod
+    );
+
+    const { winner } = await userAppClient.getGlobalState();
+
+    if (!winner) {
+      throw Error('winner global set not set!');
+    }
+
+    const addressString = encodeAddress(winner.asByteArray());
+    console.log(addressString);
+
+    await userAppClient.claim(
+      {
+        winner: addressString,
+      },
+      {
+        sendParams: {
+          fee: algos(0.002),
         },
       }
     );

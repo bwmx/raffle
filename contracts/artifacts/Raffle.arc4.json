@@ -37,7 +37,7 @@
       }
     },
     {
-      "name": "chooseWinner",
+      "name": "chooseWinningTicket",
       "args": [
         {
           "name": "_beaconApp",
@@ -47,13 +47,28 @@
       ],
       "desc": "",
       "returns": {
-        "type": "(address,uint64,uint64)",
+        "type": "uint64",
+        "desc": ""
+      }
+    },
+    {
+      "name": "setWinner",
+      "args": [],
+      "desc": "",
+      "returns": {
+        "type": "void",
         "desc": ""
       }
     },
     {
       "name": "claim",
-      "args": [],
+      "args": [
+        {
+          "name": "winner",
+          "type": "address",
+          "desc": ""
+        }
+      ],
       "desc": "",
       "returns": {
         "type": "void",

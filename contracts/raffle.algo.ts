@@ -1,10 +1,6 @@
 import { Contract } from '@algorandfoundation/tealscript';
 
-type Winner = {
-  address: Address;
-  ticketNumber: uint64;
-  amount: uint64;
-};
+const USE_DUMMY_BEACON = true;
 
 // eslint-disable-next-line no-unused-vars
 class Raffle extends Contract {
@@ -22,7 +18,9 @@ class Raffle extends Contract {
 
   numTicketsSold = GlobalStateKey<uint64>();
 
-  winner = GlobalStateKey<Winner>();
+  winningTicket = GlobalStateKey<uint64>();
+
+  winner = GlobalStateKey<Address>();
 
   numTicketsBought = LocalStateKey<uint64>();
 
@@ -51,42 +49,42 @@ class Raffle extends Contract {
   }
 
   private getRandomNumberBetween(min: uint64, max: uint64): uint64 {
-    // const seed = this.getRandomness(this.finishRound.value);
-
-    // wrong?
-    // const r = btobigint(seed) % (max - min + 1 + min);
-    if (min === max) {
-      return 1;
+    // just return 3, makes it easier for devnet testing without a randomness beacon deployed
+    if (USE_DUMMY_BEACON) {
+      return 0;
     }
-    return 3;
+
+    const seed = this.getRandomness(this.finishRound.value);
+
+    return <uint64>btobigint(seed) % (max - min + 1 + min);
   }
 
   // must reference _beaconApp
-  chooseWinner(_beaconApp: Application): Winner {
+  chooseWinningTicket(_beaconApp: Application): uint64 {
     // beacon app should match the whitelisted id
     assert(_beaconApp === this.beaconApp.value);
     // must be after the finish round
     assert(globals.round > this.finishRound.value);
 
     const r = this.getRandomNumberBetween(0, this.numTicketsSold.value - 1);
-    const a = this.tickets(r).value;
 
-    const winner: Winner = {
-      address: a,
-      ticketNumber: r,
-      amount: this.price.value * this.numTicketsSold.value,
-    };
+    this.winningTicket.value = r;
 
-    this.winner.value = winner;
-
-    return winner;
+    return r;
   }
 
-  // send winner their payment, anyone can call
-  // claim(): void {
-  //   // getting account not available error
-  //   sendPayment({ amount: this.winner.value.amount, receiver: this.winner.value.address });
-  // }
+  setWinner(): void {
+    const address = this.tickets(this.winningTicket.value).value;
+
+    // set winner address
+    this.winner.value = address;
+  }
+
+  // send winner their payment, anyone can call. account winner has to be referenced
+  // eslint-disable-next-line no-unused-vars
+  claim(winner: Account): void {
+    sendPayment({ amount: this.price.value * this.numTicketsSold.value, receiver: this.winner.value });
+  }
 
   buyTicket(payTxn: PayTxn): number {
     // dont let anyone buy tickets after it ended
