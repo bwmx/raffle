@@ -82,7 +82,7 @@ class Raffle extends Contract {
 
   // send winner their payment, anyone can call. account winner has to be referenced
   // eslint-disable-next-line no-unused-vars
-  claim(winner: Account): void {
+  claim(): void {
     sendPayment({ amount: this.price.value * this.numTicketsSold.value, receiver: this.winner.value });
   }
 

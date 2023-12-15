@@ -1,7 +1,13 @@
 import { describe, test, expect, beforeAll, beforeEach } from '@jest/globals';
 import { algorandFixture } from '@algorandfoundation/algokit-utils/testing';
 import { algos, sendTransaction } from '@algorandfoundation/algokit-utils';
-import { encodeAddress, encodeUint64, makePaymentTxnWithSuggestedParamsFromObject } from 'algosdk';
+import {
+  AtomicTransactionComposer,
+  encodeAddress,
+  encodeUint64,
+  makeBasicAccountTransactionSigner,
+  makePaymentTxnWithSuggestedParamsFromObject,
+} from 'algosdk';
 import { RaffleClient } from '../contracts/clients/RaffleClient';
 
 // I can't get a copy of the randomness beacon running locally, this is just placeholder
@@ -29,7 +35,7 @@ describe('Raffle', () => {
       algod
     );
 
-    await appClient.create.createApplication({ beaconApp: BEACON_APP_ID, price: algos(1).microAlgos, length: 15 });
+    await appClient.create.createApplication({ beaconApp: BEACON_APP_ID, price: algos(1).microAlgos, length: 30 });
     const { appId, appAddress } = await appClient.appClient.getAppReference();
 
     testAppId = appId;
@@ -90,48 +96,48 @@ describe('Raffle', () => {
     expect(Number(numTicketsBought.return)).toEqual(0);
   });
 
-  // test('manyEntries', async () => {
-  //   const { algod, generateAccount } = fixture.context;
+  test('manyEntries', async () => {
+    const { algod, generateAccount } = fixture.context;
 
-  //   for (let i = 1; i < 5; i += 1) {
-  //     // eslint-disable-next-line no-await-in-loop
-  //     const acc = await generateAccount({ initialFunds: algos(10) });
+    for (let i = 1; i < 5; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      const acc = await generateAccount({ initialFunds: algos(10) });
 
-  //     const rc = new RaffleClient(
-  //       {
-  //         sender: acc,
-  //         resolveBy: 'id',
-  //         id: testAppId,
-  //       },
-  //       algod
-  //     );
+      const rc = new RaffleClient(
+        {
+          sender: acc,
+          resolveBy: 'id',
+          id: testAppId,
+        },
+        algod
+      );
 
-  //     // eslint-disable-next-line no-await-in-loop
-  //     await rc.optIn.optInToApplication({});
+      // eslint-disable-next-line no-await-in-loop
+      await rc.optIn.optInToApplication({});
 
-  //     // it's not quite 0.2 algos, but this covers most cases
-  //     const boxFee = algos(0.2).microAlgos;
+      // it's not quite 0.2 algos, but this covers most cases
+      const boxFee = algos(0.2).microAlgos;
 
-  //     // TODO: needs to pay box fee storage
-  //     const txn = makePaymentTxnWithSuggestedParamsFromObject({
-  //       from: acc.addr,
-  //       to: testAppAddress,
-  //       amount: algos(1).microAlgos + boxFee,
-  //       // eslint-disable-next-line no-await-in-loop
-  //       suggestedParams: await algod.getTransactionParams().do(),
-  //     });
+      // TODO: needs to pay box fee storage
+      const txn = makePaymentTxnWithSuggestedParamsFromObject({
+        from: acc.addr,
+        to: testAppAddress,
+        amount: algos(1).microAlgos + boxFee,
+        // eslint-disable-next-line no-await-in-loop
+        suggestedParams: await algod.getTransactionParams().do(),
+      });
 
-  //     // eslint-disable-next-line no-await-in-loop
-  //     const ntb = await rc.buyTicket(
-  //       { payTxn: txn },
-  //       {
-  //         boxes: [{ appIndex: 0, name: encodeUint64(i) }],
-  //       }
-  //     );
+      // eslint-disable-next-line no-await-in-loop
+      const ntb = await rc.buyTicket(
+        { payTxn: txn },
+        {
+          boxes: [{ appIndex: 0, name: encodeUint64(i) }],
+        }
+      );
 
-  //     console.log(ntb);
-  //   }
-  // });
+      console.log(ntb);
+    }
+  });
 
   test('chooseWinningTicket', async () => {
     const { algod, testAccount } = fixture.context;
@@ -145,6 +151,7 @@ describe('Raffle', () => {
       algod
     );
 
+    // hack to advance things predictable in devnet
     for (let i = 0; i < 30; i += 1) {
       const payTxn = makePaymentTxnWithSuggestedParamsFromObject({
         from: testAccount.addr,
@@ -215,15 +222,21 @@ describe('Raffle', () => {
     const addressString = encodeAddress(winner.asByteArray());
     console.log(addressString);
 
-    await userAppClient.claim(
-      {
-        winner: addressString,
-      },
-      {
-        sendParams: {
-          fee: algos(0.002),
-        },
-      }
-    );
+    const atc = new AtomicTransactionComposer();
+    const suggestedParams = await algod.getTransactionParams().do();
+    const sp = { ...suggestedParams, fee: 2_000, flatFee: true };
+    const signer = makeBasicAccountTransactionSigner(testAccount);
+
+    atc.addMethodCall({
+      appID: Number(testAppId),
+      method: userAppClient.appClient.getABIMethod('claim')!,
+      methodArgs: [addressString],
+      sender: testAccount.addr,
+      signer,
+      suggestedParams: sp,
+      appAccounts: [addressString],
+    });
+
+    await atc.execute(algod, 4);
   });
 });
