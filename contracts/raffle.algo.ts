@@ -1,7 +1,5 @@
 import { Contract } from '@algorandfoundation/tealscript';
 
-const USE_DUMMY_BEACON = true;
-
 // eslint-disable-next-line no-unused-vars
 class Raffle extends Contract {
   // ticket boxmap
@@ -37,6 +35,11 @@ class Raffle extends Contract {
     this.numTicketsBought(this.txn.sender).value = 0;
   }
 
+  // we can upgrade the app
+  updateApplication(): void {
+    assert(this.txn.sender === this.app.creator);
+  }
+
   private getRandomness(round: uint64): bytes {
     const r: bytes = sendMethodCall<[uint64, bytes], bytes>({
       applicationID: this.beaconApp.value,
@@ -49,18 +52,15 @@ class Raffle extends Contract {
   }
 
   private getRandomNumberBetween(min: uint64, max: uint64): uint64 {
-    // just return 3, makes it easier for devnet testing without a randomness beacon deployed
-    if (USE_DUMMY_BEACON) {
-      return 0;
-    }
-
     const seed = this.getRandomness(this.finishRound.value);
 
-    return <uint64>btobigint(seed) % (max - min + 1 + min);
+    return extract_uint64(seed, 0) % (max - min + 1 + min);
   }
 
   // must reference _beaconApp
   chooseWinningTicket(_beaconApp: Application): uint64 {
+    // this should not exist
+    assert(!this.winningTicket.exists);
     // beacon app should match the whitelisted id
     assert(_beaconApp === this.beaconApp.value);
     // must be after the finish round
@@ -74,6 +74,9 @@ class Raffle extends Contract {
   }
 
   setWinner(): void {
+    // this should not exist, if it has it's already been set
+    assert(!this.winner.exists);
+
     const address = this.tickets(this.winningTicket.value).value;
 
     // set winner address

@@ -37,6 +37,15 @@
       }
     },
     {
+      "name": "updateApplication",
+      "args": [],
+      "desc": "",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
+    },
+    {
       "name": "chooseWinningTicket",
       "args": [
         {
@@ -62,13 +71,7 @@
     },
     {
       "name": "claim",
-      "args": [
-        {
-          "name": "winner",
-          "type": "address",
-          "desc": ""
-        }
-      ],
+      "args": [],
       "desc": "",
       "returns": {
         "type": "void",

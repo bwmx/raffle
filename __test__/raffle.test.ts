@@ -186,7 +186,7 @@ describe('Raffle', () => {
     const { winningTicket } = await userAppClient.getGlobalState();
 
     if (!winningTicket) {
-      throw Error('winningTicketNumber global set not set!');
+      throw Error('winningTicket global set not set!');
     }
 
     await userAppClient.setWinner(
@@ -230,7 +230,7 @@ describe('Raffle', () => {
     atc.addMethodCall({
       appID: Number(testAppId),
       method: userAppClient.appClient.getABIMethod('claim')!,
-      methodArgs: [addressString],
+      methodArgs: [],
       sender: testAccount.addr,
       signer,
       suggestedParams: sp,
