@@ -218,6 +218,16 @@ chooseWinningTicket:
 	proto 2 0
 
 	// contracts/raffle.algo.ts:63
+	// assert(!this.winningTicket.exists)
+	txna Applications 0
+	byte 0x77696e6e696e675469636b6574 // "winningTicket"
+	app_global_get_ex
+	swap
+	pop
+	!
+	assert
+
+	// contracts/raffle.algo.ts:65
 	// assert(_beaconApp === this.beaconApp.value)
 	frame_dig -1 // _beaconApp: application
 	byte 0x626561636f6e417070 // "beaconApp"
@@ -225,7 +235,7 @@ chooseWinningTicket:
 	==
 	assert
 
-	// contracts/raffle.algo.ts:65
+	// contracts/raffle.algo.ts:67
 	// assert(globals.round > this.finishRound.value)
 	global Round
 	byte 0x66696e697368526f756e64 // "finishRound"
@@ -233,7 +243,7 @@ chooseWinningTicket:
 	>
 	assert
 
-	// contracts/raffle.algo.ts:67
+	// contracts/raffle.algo.ts:69
 	// r = this.getRandomNumberBetween(0, this.numTicketsSold.value - 1)
 	byte 0x // push empty bytes to fill the stack frame for this subroutine's local variables
 	byte 0x6e756d5469636b657473536f6c64 // "numTicketsSold"
@@ -244,13 +254,13 @@ chooseWinningTicket:
 	callsub getRandomNumberBetween
 	frame_bury -2 // r: uint64
 
-	// contracts/raffle.algo.ts:69
+	// contracts/raffle.algo.ts:71
 	// this.winningTicket.value = r
 	byte 0x77696e6e696e675469636b6574 // "winningTicket"
 	frame_dig -2 // r: uint64
 	app_global_put
 
-	// contracts/raffle.algo.ts:71
+	// contracts/raffle.algo.ts:73
 	// return r;
 	frame_dig -2 // r: uint64
 	itob
@@ -272,7 +282,17 @@ abi_route_setWinner:
 setWinner:
 	proto 1 0
 
-	// contracts/raffle.algo.ts:75
+	// contracts/raffle.algo.ts:78
+	// assert(!this.winner.exists)
+	txna Applications 0
+	byte 0x77696e6e6572 // "winner"
+	app_global_get_ex
+	swap
+	pop
+	!
+	assert
+
+	// contracts/raffle.algo.ts:80
 	// address = this.tickets(this.winningTicket.value).value
 	byte 0x77696e6e696e675469636b6574 // "winningTicket"
 	app_global_get
@@ -281,7 +301,7 @@ setWinner:
 	assert
 	frame_bury -1 // address: address
 
-	// contracts/raffle.algo.ts:78
+	// contracts/raffle.algo.ts:83
 	// this.winner.value = address
 	byte 0x77696e6e6572 // "winner"
 	frame_dig -1 // address: address
@@ -300,13 +320,13 @@ abi_route_claim:
 claim:
 	proto 0 0
 
-	// contracts/raffle.algo.ts:84
+	// contracts/raffle.algo.ts:89
 	// sendPayment({ amount: this.price.value * this.numTicketsSold.value, receiver: this.winner.value })
 	itxn_begin
 	int pay
 	itxn_field TypeEnum
 
-	// contracts/raffle.algo.ts:84
+	// contracts/raffle.algo.ts:89
 	// amount: this.price.value * this.numTicketsSold.value
 	byte 0x7072696365 // "price"
 	app_global_get
@@ -315,7 +335,7 @@ claim:
 	*
 	itxn_field Amount
 
-	// contracts/raffle.algo.ts:84
+	// contracts/raffle.algo.ts:89
 	// receiver: this.winner.value
 	byte 0x77696e6e6572 // "winner"
 	app_global_get
@@ -351,7 +371,7 @@ abi_route_buyTicket:
 buyTicket:
 	proto 2 0
 
-	// contracts/raffle.algo.ts:89
+	// contracts/raffle.algo.ts:94
 	// assert(globals.round < this.finishRound.value)
 	global Round
 	byte 0x66696e697368526f756e64 // "finishRound"
@@ -359,7 +379,7 @@ buyTicket:
 	<
 	assert
 
-	// contracts/raffle.algo.ts:91
+	// contracts/raffle.algo.ts:96
 	// verifyTxn(payTxn, {
 	//       receiver: this.app.address,
 	//       sender: this.txn.sender,
@@ -387,13 +407,13 @@ buyTicket:
 	>=
 	assert
 
-	// contracts/raffle.algo.ts:98
+	// contracts/raffle.algo.ts:103
 	// numTicketsSold = this.numTicketsSold.value
 	byte 0x6e756d5469636b657473536f6c64 // "numTicketsSold"
 	app_global_get
 	frame_bury -2 // numTicketsSold: uint64
 
-	// contracts/raffle.algo.ts:100
+	// contracts/raffle.algo.ts:105
 	// assert(!this.tickets(numTicketsSold).exists)
 	frame_dig -2 // numTicketsSold: uint64
 	itob
@@ -403,14 +423,14 @@ buyTicket:
 	!
 	assert
 
-	// contracts/raffle.algo.ts:103
+	// contracts/raffle.algo.ts:108
 	// this.tickets(numTicketsSold).value = this.txn.sender
 	frame_dig -2 // numTicketsSold: uint64
 	itob
 	txn Sender
 	box_put
 
-	// contracts/raffle.algo.ts:106
+	// contracts/raffle.algo.ts:111
 	// this.numTicketsBought(this.txn.sender).value = this.numTicketsBought(this.txn.sender).value + 1
 	txn Sender
 	byte 0x6e756d5469636b657473426f75676874 // "numTicketsBought"
@@ -421,7 +441,7 @@ buyTicket:
 	+
 	app_local_put
 
-	// contracts/raffle.algo.ts:109
+	// contracts/raffle.algo.ts:114
 	// this.numTicketsSold.value = this.numTicketsSold.value + 1
 	byte 0x6e756d5469636b657473536f6c64 // "numTicketsSold"
 	byte 0x6e756d5469636b657473536f6c64 // "numTicketsSold"
@@ -430,7 +450,7 @@ buyTicket:
 	+
 	app_global_put
 
-	// contracts/raffle.algo.ts:111
+	// contracts/raffle.algo.ts:116
 	// return numTicketsSold;
 	frame_dig -2 // numTicketsSold: uint64
 	itob
