@@ -92,6 +92,21 @@
         "type": "uint64",
         "desc": ""
       }
+    },
+    {
+      "name": "reclaimBoxFee",
+      "args": [
+        {
+          "name": "boxKey",
+          "type": "uint64",
+          "desc": ""
+        }
+      ],
+      "desc": "",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
     }
   ]
 }

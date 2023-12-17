@@ -45,19 +45,19 @@ abi_route_createApplication:
 createApplication:
 	proto 3 0
 
-	// contracts/raffle.algo.ts:26
+	// contracts/raffle.algo.ts:33
 	// this.beaconApp.value = beaconApp
 	byte 0x626561636f6e417070 // "beaconApp"
 	frame_dig -1 // beaconApp: application
 	app_global_put
 
-	// contracts/raffle.algo.ts:27
+	// contracts/raffle.algo.ts:34
 	// this.price.value = price
 	byte 0x7072696365 // "price"
 	frame_dig -2 // price: uint64
 	app_global_put
 
-	// contracts/raffle.algo.ts:28
+	// contracts/raffle.algo.ts:35
 	// this.finishRound.value = globals.round + length
 	byte 0x66696e697368526f756e64 // "finishRound"
 	global Round
@@ -65,9 +65,15 @@ createApplication:
 	+
 	app_global_put
 
-	// contracts/raffle.algo.ts:30
+	// contracts/raffle.algo.ts:37
 	// this.numTicketsSold.value = 0
 	byte 0x6e756d5469636b657473536f6c64 // "numTicketsSold"
+	int 0
+	app_global_put
+
+	// contracts/raffle.algo.ts:39
+	// this.status.value = STATUS_CREATED
+	byte 0x737461747573 // "status"
 	int 0
 	app_global_put
 	retsub
@@ -84,7 +90,7 @@ abi_route_optInToApplication:
 optInToApplication:
 	proto 0 0
 
-	// contracts/raffle.algo.ts:35
+	// contracts/raffle.algo.ts:44
 	// this.numTicketsBought(this.txn.sender).value = 0
 	txn Sender
 	byte 0x6e756d5469636b657473426f75676874 // "numTicketsBought"
@@ -104,7 +110,7 @@ abi_route_updateApplication:
 updateApplication:
 	proto 0 0
 
-	// contracts/raffle.algo.ts:40
+	// contracts/raffle.algo.ts:49
 	// assert(this.txn.sender === this.app.creator)
 	txn Sender
 	txna Applications 0
@@ -115,75 +121,25 @@ updateApplication:
 	retsub
 
 getRandomness:
-	proto 2 1
+	proto 1 1
 
-	// contracts/raffle.algo.ts:44
-	// r: bytes = sendMethodCall<[uint64, bytes], bytes>({
-	//       applicationID: this.beaconApp.value,
-	//       name: 'must_get',
-	//       methodArgs: [round, concat(this.txn.sender, itob(round))],
-	//       fee: 0,
-	//     })
-	itxn_begin
-	int appl
-	itxn_field TypeEnum
-	method "must_get(uint64,byte[])byte[]"
-	itxn_field ApplicationArgs
-
-	// contracts/raffle.algo.ts:45
-	// applicationID: this.beaconApp.value
-	byte 0x626561636f6e417070 // "beaconApp"
-	app_global_get
-	itxn_field ApplicationID
-
-	// contracts/raffle.algo.ts:47
-	// methodArgs: [round, concat(this.txn.sender, itob(round))]
+	// contracts/raffle.algo.ts:61
+	// return itob(round);
 	frame_dig -1 // round: uint64
 	itob
-	itxn_field ApplicationArgs
-	txn Sender
-	frame_dig -1 // round: uint64
-	itob
-	concat
-	dup
-	len
-	itob
-	extract 6 2
-	swap
-	concat
-	itxn_field ApplicationArgs
-
-	// contracts/raffle.algo.ts:48
-	// fee: 0
-	int 0
-	itxn_field Fee
-
-	// Submit inner transaction
-	itxn_submit
-	itxn NumLogs
-	int 1
-	-
-	itxnas Logs
-	extract 4 0
-	frame_bury -2 // r: bytes
-
-	// contracts/raffle.algo.ts:51
-	// return r;
-	frame_dig -2 // r: bytes
 	retsub
 
 getRandomNumberBetween:
 	proto 3 1
 
-	// contracts/raffle.algo.ts:55
+	// contracts/raffle.algo.ts:65
 	// seed = this.getRandomness(this.finishRound.value)
-	byte 0x // push empty bytes to fill the stack frame for this subroutine's local variables
 	byte 0x66696e697368526f756e64 // "finishRound"
 	app_global_get
 	callsub getRandomness
 	frame_bury -3 // seed: byte[]
 
-	// contracts/raffle.algo.ts:57
+	// contracts/raffle.algo.ts:67
 	// return extract_uint64(seed, 0) % (max - min + 1 + min);
 	frame_dig -3 // seed: byte[]
 	int 0
@@ -217,7 +173,7 @@ abi_route_chooseWinningTicket:
 chooseWinningTicket:
 	proto 2 0
 
-	// contracts/raffle.algo.ts:63
+	// contracts/raffle.algo.ts:73
 	// assert(!this.winningTicket.exists)
 	txna Applications 0
 	byte 0x77696e6e696e675469636b6574 // "winningTicket"
@@ -227,7 +183,7 @@ chooseWinningTicket:
 	!
 	assert
 
-	// contracts/raffle.algo.ts:65
+	// contracts/raffle.algo.ts:75
 	// assert(_beaconApp === this.beaconApp.value)
 	frame_dig -1 // _beaconApp: application
 	byte 0x626561636f6e417070 // "beaconApp"
@@ -235,7 +191,7 @@ chooseWinningTicket:
 	==
 	assert
 
-	// contracts/raffle.algo.ts:67
+	// contracts/raffle.algo.ts:77
 	// assert(globals.round > this.finishRound.value)
 	global Round
 	byte 0x66696e697368526f756e64 // "finishRound"
@@ -243,7 +199,7 @@ chooseWinningTicket:
 	>
 	assert
 
-	// contracts/raffle.algo.ts:69
+	// contracts/raffle.algo.ts:79
 	// r = this.getRandomNumberBetween(0, this.numTicketsSold.value - 1)
 	byte 0x // push empty bytes to fill the stack frame for this subroutine's local variables
 	byte 0x6e756d5469636b657473536f6c64 // "numTicketsSold"
@@ -254,13 +210,19 @@ chooseWinningTicket:
 	callsub getRandomNumberBetween
 	frame_bury -2 // r: uint64
 
-	// contracts/raffle.algo.ts:71
+	// contracts/raffle.algo.ts:81
 	// this.winningTicket.value = r
 	byte 0x77696e6e696e675469636b6574 // "winningTicket"
 	frame_dig -2 // r: uint64
 	app_global_put
 
-	// contracts/raffle.algo.ts:73
+	// contracts/raffle.algo.ts:83
+	// this.status.value = STATUS_PENDING_WINNER
+	byte 0x737461747573 // "status"
+	int 1
+	app_global_put
+
+	// contracts/raffle.algo.ts:84
 	// return r;
 	frame_dig -2 // r: uint64
 	itob
@@ -282,7 +244,7 @@ abi_route_setWinner:
 setWinner:
 	proto 1 0
 
-	// contracts/raffle.algo.ts:78
+	// contracts/raffle.algo.ts:89
 	// assert(!this.winner.exists)
 	txna Applications 0
 	byte 0x77696e6e6572 // "winner"
@@ -292,7 +254,7 @@ setWinner:
 	!
 	assert
 
-	// contracts/raffle.algo.ts:80
+	// contracts/raffle.algo.ts:91
 	// address = this.tickets(this.winningTicket.value).value
 	byte 0x77696e6e696e675469636b6574 // "winningTicket"
 	app_global_get
@@ -301,10 +263,16 @@ setWinner:
 	assert
 	frame_bury -1 // address: address
 
-	// contracts/raffle.algo.ts:83
+	// contracts/raffle.algo.ts:94
 	// this.winner.value = address
 	byte 0x77696e6e6572 // "winner"
 	frame_dig -1 // address: address
+	app_global_put
+
+	// contracts/raffle.algo.ts:96
+	// this.status.value = STATUS_PENDING_CLAIM
+	byte 0x737461747573 // "status"
+	int 2
 	app_global_put
 	retsub
 
@@ -320,13 +288,21 @@ abi_route_claim:
 claim:
 	proto 0 0
 
-	// contracts/raffle.algo.ts:89
+	// contracts/raffle.algo.ts:103
+	// assert(this.status.value === STATUS_PENDING_CLAIM)
+	byte 0x737461747573 // "status"
+	app_global_get
+	int 2
+	==
+	assert
+
+	// contracts/raffle.algo.ts:105
 	// sendPayment({ amount: this.price.value * this.numTicketsSold.value, receiver: this.winner.value })
 	itxn_begin
 	int pay
 	itxn_field TypeEnum
 
-	// contracts/raffle.algo.ts:89
+	// contracts/raffle.algo.ts:105
 	// amount: this.price.value * this.numTicketsSold.value
 	byte 0x7072696365 // "price"
 	app_global_get
@@ -335,7 +311,7 @@ claim:
 	*
 	itxn_field Amount
 
-	// contracts/raffle.algo.ts:89
+	// contracts/raffle.algo.ts:105
 	// receiver: this.winner.value
 	byte 0x77696e6e6572 // "winner"
 	app_global_get
@@ -347,6 +323,12 @@ claim:
 
 	// Submit inner transaction
 	itxn_submit
+
+	// contracts/raffle.algo.ts:107
+	// this.status.value = STATUS_FINISHED
+	byte 0x737461747573 // "status"
+	int 3
+	app_global_put
 	retsub
 
 // buyTicket(pay)uint64
@@ -371,7 +353,7 @@ abi_route_buyTicket:
 buyTicket:
 	proto 2 0
 
-	// contracts/raffle.algo.ts:94
+	// contracts/raffle.algo.ts:112
 	// assert(globals.round < this.finishRound.value)
 	global Round
 	byte 0x66696e697368526f756e64 // "finishRound"
@@ -379,7 +361,7 @@ buyTicket:
 	<
 	assert
 
-	// contracts/raffle.algo.ts:96
+	// contracts/raffle.algo.ts:114
 	// verifyTxn(payTxn, {
 	//       receiver: this.app.address,
 	//       sender: this.txn.sender,
@@ -407,13 +389,13 @@ buyTicket:
 	>=
 	assert
 
-	// contracts/raffle.algo.ts:103
+	// contracts/raffle.algo.ts:121
 	// numTicketsSold = this.numTicketsSold.value
 	byte 0x6e756d5469636b657473536f6c64 // "numTicketsSold"
 	app_global_get
 	frame_bury -2 // numTicketsSold: uint64
 
-	// contracts/raffle.algo.ts:105
+	// contracts/raffle.algo.ts:123
 	// assert(!this.tickets(numTicketsSold).exists)
 	frame_dig -2 // numTicketsSold: uint64
 	itob
@@ -423,14 +405,14 @@ buyTicket:
 	!
 	assert
 
-	// contracts/raffle.algo.ts:108
+	// contracts/raffle.algo.ts:126
 	// this.tickets(numTicketsSold).value = this.txn.sender
 	frame_dig -2 // numTicketsSold: uint64
 	itob
 	txn Sender
 	box_put
 
-	// contracts/raffle.algo.ts:111
+	// contracts/raffle.algo.ts:129
 	// this.numTicketsBought(this.txn.sender).value = this.numTicketsBought(this.txn.sender).value + 1
 	txn Sender
 	byte 0x6e756d5469636b657473426f75676874 // "numTicketsBought"
@@ -441,7 +423,7 @@ buyTicket:
 	+
 	app_local_put
 
-	// contracts/raffle.algo.ts:114
+	// contracts/raffle.algo.ts:132
 	// this.numTicketsSold.value = this.numTicketsSold.value + 1
 	byte 0x6e756d5469636b657473536f6c64 // "numTicketsSold"
 	byte 0x6e756d5469636b657473536f6c64 // "numTicketsSold"
@@ -450,7 +432,7 @@ buyTicket:
 	+
 	app_global_put
 
-	// contracts/raffle.algo.ts:116
+	// contracts/raffle.algo.ts:134
 	// return numTicketsSold;
 	frame_dig -2 // numTicketsSold: uint64
 	itob
@@ -458,6 +440,77 @@ buyTicket:
 	swap
 	concat
 	log
+	retsub
+
+// reclaimBoxFee(uint64)void
+abi_route_reclaimBoxFee:
+	byte 0x // push empty bytes to fill the stack frame for this subroutine's local variables
+
+	// boxKey: uint64
+	txna ApplicationArgs 1
+	btoi
+
+	// execute reclaimBoxFee(uint64)void
+	callsub reclaimBoxFee
+	int 1
+	return
+
+reclaimBoxFee:
+	proto 2 0
+
+	// contracts/raffle.algo.ts:139
+	// assert(this.status.value === STATUS_PENDING_CLAIM || this.status.value === STATUS_FINISHED)
+	byte 0x737461747573 // "status"
+	app_global_get
+	int 2
+	==
+	dup
+	bnz skip_or0
+	byte 0x737461747573 // "status"
+	app_global_get
+	int 3
+	==
+	||
+
+skip_or0:
+	assert
+
+	// contracts/raffle.algo.ts:142
+	// who = this.tickets(boxKey).value
+	frame_dig -1 // boxKey: uint64
+	itob
+	box_get
+	assert
+	frame_bury -2 // who: address
+
+	// contracts/raffle.algo.ts:145
+	// sendPayment({ amount: 100_000, receiver: who })
+	itxn_begin
+	int pay
+	itxn_field TypeEnum
+
+	// contracts/raffle.algo.ts:145
+	// amount: 100_000
+	int 100_000
+	itxn_field Amount
+
+	// contracts/raffle.algo.ts:145
+	// receiver: who
+	frame_dig -2 // who: address
+	itxn_field Receiver
+
+	// Fee field not set, defaulting to 0
+	int 0
+	itxn_field Fee
+
+	// Submit inner transaction
+	itxn_submit
+
+	// contracts/raffle.algo.ts:147
+	// this.tickets(boxKey).delete()
+	frame_dig -1 // boxKey: uint64
+	itob
+	box_del
 	retsub
 
 create_NoOp:
@@ -471,8 +524,9 @@ call_NoOp:
 	method "setWinner()void"
 	method "claim()void"
 	method "buyTicket(pay)uint64"
+	method "reclaimBoxFee(uint64)void"
 	txna ApplicationArgs 0
-	match abi_route_chooseWinningTicket abi_route_setWinner abi_route_claim abi_route_buyTicket
+	match abi_route_chooseWinningTicket abi_route_setWinner abi_route_claim abi_route_buyTicket abi_route_reclaimBoxFee
 	err
 
 call_OptIn:
